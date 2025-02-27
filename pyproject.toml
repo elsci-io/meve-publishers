@@ -1,0 +1,17 @@
+[project]
+name = "elsci-meve-publishers"
+version = "1.0.0"
+description = "ETLs to publish Molecular Events to Meve"
+readme = "README.md"
+requires-python = ">=3.13"
+license = {text = "MIT License"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["ord-schema", "setuptools"]
+
+[project.urls]
+Homepage = "https://github.com/elsci-io/meve-publishers"
+Issues = "https://github.com/elsci-io/meve-publishers/issues"
