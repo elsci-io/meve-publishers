@@ -1,7 +1,5 @@
 from datetime import datetime, timezone
 
-from ord_schema.message_helpers import fetch_dataset
-from ord_schema.orm.database import add_dataset
 from ord_schema.proto.reaction_pb2 import CompoundIdentifier, ReactionRole, Reaction
 from dateutil.parser import isoparser
 
@@ -65,27 +63,32 @@ def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
                                     "https://open-reaction-database.org/id/" + rxn.reaction_id))
     return events
 
+dataset_ids = []
+with open('./datasets.txt', 'r') as f:
+    lines = f.readlines()
+    for line in lines:
+        dataset_ids.extend(line.split(" "))
+for dataset_id in dataset_ids:
+    dataset = get_dataset(dataset_id.strip())
+    events: list[Event] = []
+    for rxn in dataset.reactions:
+        pre_events: list[PreEvent] = []
+        pre_events.extend(get_reacted_events(rxn))
+        for outcome in rxn.outcomes:
+            for product in outcome.products:
+                for identifier in product.identifiers:
+                    struct_type = structure_type_mapping.get(identifier.type)
+                    struct = identifier.value
+                    if not struct_type or not struct:
+                        continue
+                    pre_events.append(PreEvent("Synthesized", identifier.value, struct_type,
+                                                "https://open-reaction-database.org/id/" + rxn.reaction_id))
 
-dataset = get_dataset("ord_dataset-fc83743b978f4deea7d6856deacbfe53")
-events: list[Event] = []
-for rxn in dataset.reactions:
-    pre_events: list[PreEvent] = []
-    pre_events.extend(get_reacted_events(rxn))
-    for outcome in rxn.outcomes:
-        for product in outcome.products:
-            for identifier in product.identifiers:
-                struct_type = structure_type_mapping.get(identifier.type)
-                struct = identifier.value
-                if not struct_type or not struct:
-                    continue
-                pre_events.append(PreEvent("Synthesized", identifier.value, struct_type,
-                                            "https://open-reaction-database.org/id/" + rxn.reaction_id))
+        rxn_time: datetime = parse_ord_time(rxn.provenance.experiment_start.value)
+        for pre_event in pre_events:
+            events.append(Event(pre_event.event_name, rxn.provenance.experimenter.name, None, None,
+                                pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, pre_event.ui_url,
+                                None, None))
 
-    rxn_time: datetime = parse_ord_time(rxn.provenance.experiment_start.value)
-    for pre_event in pre_events:
-        events.append(Event(pre_event.event_name, rxn.provenance.experimenter.name, None, None,
-                            pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, pre_event.ui_url,
-                            None, None))
-
-for event in events:
-    print(event.to_csv())
+    for event in events:
+        print(event.to_csv())
