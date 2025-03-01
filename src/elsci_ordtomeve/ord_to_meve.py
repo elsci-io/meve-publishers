@@ -5,6 +5,8 @@ from ord_schema.orm.database import add_dataset
 from ord_schema.proto.reaction_pb2 import CompoundIdentifier, ReactionRole, Reaction
 from dateutil.parser import isoparser
 
+from elsci_ordtomeve.ord_util import get_dataset
+
 isoparser = isoparser()
 
 from elscimevesdk.Event import Event
@@ -64,7 +66,7 @@ def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
     return events
 
 
-dataset = fetch_dataset("ord_dataset-fc83743b978f4deea7d6856deacbfe53")
+dataset = get_dataset("ord_dataset-fc83743b978f4deea7d6856deacbfe53")
 events: list[Event] = []
 for rxn in dataset.reactions:
     pre_events: list[PreEvent] = []
