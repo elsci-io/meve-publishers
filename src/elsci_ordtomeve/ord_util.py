@@ -42,6 +42,7 @@ def get_dataset(dataset_id: str, timeout: float = 10.0) -> dataset_pb2.Dataset:
     path = Path(_WORK_DIR, _dataset_filename(dataset_id))
     if not path.exists():
         download_dataset(dataset_id, timeout)
+    print(f"Opening {path}")
     with open(path, 'rb') as f:
         return dataset_pb2.Dataset.FromString(gzip.decompress(f.read()))
 

@@ -66,6 +66,8 @@ def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
                                     "https://open-reaction-database.org/id/" + rxn.reaction_id))
     return events
 
+events_total = 0
+reactions_total = 0
 dataset_ids = []
 with open('./datasets.txt', 'r') as f:
     lines = f.readlines()
@@ -75,6 +77,7 @@ for dataset_id in dataset_ids:
     dataset = get_dataset(dataset_id.strip())
     events: list[Event] = []
     for rxn in dataset.reactions:
+        reactions_total += 1
         pre_events: list[PreEvent] = []
         pre_events.extend(get_reacted_events(rxn))
         for outcome in rxn.outcomes:
@@ -93,5 +96,8 @@ for dataset_id in dataset_ids:
                                 pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, pre_event.ui_url,
                                 None, None))
 
-    for event in events:
-        print(event.to_csv())
+    print(f"Parsed {len(events)} events")
+    events_total += len(events)
+    # for event in events:
+    #     print(event.to_csv())
+print(f"Parsed {events_total} events out of {reactions_total} reactions")
