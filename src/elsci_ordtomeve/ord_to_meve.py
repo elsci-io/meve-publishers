@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+import pytz
 from ord_schema.proto.reaction_pb2 import CompoundIdentifier, ReactionRole, Reaction
 from dateutil.parser import isoparser
 
@@ -21,6 +22,8 @@ def at_utc(dt: datetime) -> datetime:
 def parse_ord_time(t: str) -> datetime | None:
     if not t:
         return None
+    if "/" in t:
+        return datetime.strptime(t, '%m/%d/%Y').replace(tzinfo=pytz.UTC)
     return at_utc(isoparser.isoparse(t))
 
 event_type_mapping = {
