@@ -52,6 +52,9 @@ def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
                     event_full = True
                     break
             if event_full:
+                if '*' in struct:
+                    print(f" {rxn.reaction_id} has structure with wildcards, skipping this structure: {struct}")
+                    continue
                 events.append(PreEvent(event_name, struct, struct_format,
                                     "https://open-reaction-database.org/id/" + rxn.reaction_id))
     return events
