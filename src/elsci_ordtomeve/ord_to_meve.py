@@ -1,9 +1,11 @@
+import json
 from datetime import datetime
 
 from ord_schema.proto.reaction_pb2 import CompoundIdentifier, ReactionRole, Reaction
 
 from elsci_ordtomeve.ord_util import get_dataset
 from elsci_ordtomeve.time_util import parse_ord_time
+from elscimevesdk.HttpClient import ElsciHttpException
 from elscimevesdk.Meve import Meve
 
 from elscimevesdk.Event import Event
@@ -15,6 +17,11 @@ auth_header_val: str = basic_auth_header("MEVE_USER_NAME", passwrd)
 base_url: str = envvar("MEVE_BASE_URL", "http://localhost:8080")
 default_headers: dict[str, str] = {"Authorization": auth_header_val}
 meve = Meve(base_url, default_headers=default_headers)
+
+# We can't parse these for some reason:
+with open('./src/elsci_ordtomeve/structs_to_ignore.txt', 'r') as f:
+    structs_to_ignore = set(f.read().splitlines())
+    print(f"{len(structs_to_ignore)} of structures are added to the ignore set - they won't be recorded as events")
 
 event_type_mapping = {
     ReactionRole.ReactionRoleType.REACTANT: "Reacted",
@@ -34,6 +41,23 @@ class PreEvent:
         self.struct = struct
         self.event_name = event_name
 
+def submit_events(events: list[Event], dataset_id: str):
+    try:
+        meve.events().create(events)
+    except Exception as e:
+        if isinstance(e, ElsciHttpException) and e.response_body.startswith("{"):
+            d = json.loads(e.response_body)
+            if "invalidStructure" in d:
+                struct: str = d["invalidStructure"]
+                print(f"Couldn't parse structure {struct}, adding to the skip list")
+                with open('./src/elsci_ordtomeve/structs_to_ignore.txt', 'a') as f:
+                    f.write(struct+"\n")
+                structs_to_ignore.add(struct)
+                submit_events([e for e in events if e.originalStructure != struct], dataset_id)
+                return
+        print(e)
+        raise RuntimeError(f"Failed to process dataset {dataset_id}")
+
 def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
     events: list[PreEvent] = []
     for input in rxn.inputs:
@@ -52,9 +76,6 @@ def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
                     event_full = True
                     break
             if event_full:
-                if '*' in struct:
-                    print(f" {rxn.reaction_id} has structure with wildcards, skipping this structure: {struct}")
-                    continue
                 events.append(PreEvent(event_name, struct, struct_format,
                                     "https://open-reaction-database.org/id/" + rxn.reaction_id))
     return events
@@ -85,13 +106,20 @@ for dataset_id in dataset_ids:
 
         rxn_time: datetime = parse_ord_time(rxn.provenance.experiment_start.value)
         for pre_event in pre_events:
+            if pre_event.struct in structs_to_ignore:
+                print(f" {rxn.reaction_id} has structure that we can't parse, skipping this structure: {pre_event.struct}")
+                continue
+            if pre_event.struct_format == 'SMILES' and '*' in pre_event.struct:
+                print(f" {rxn.reaction_id} has structure with wildcards, skipping this structure: {pre_event.struct}")
+                continue
             events.append(Event(pre_event.event_name, rxn.provenance.experimenter.name, None, None,
                                 pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, "ORD",
                                 pre_event.ui_url, None, None))
 
+
     print(f"Parsed {len(events)} events")
-    meve.events().create(events)
+    submit_events(events, dataset_id)
     events_total += len(events)
-    # for event in events:
-    #     print(event.to_csv())
+
 print(f"Parsed {events_total} events out of {reactions_total} reactions")
+

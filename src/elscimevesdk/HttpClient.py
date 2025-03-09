@@ -70,9 +70,7 @@ class HttpClient:
         body = self._body(resp)
         if not body:
             body = "<Response body is empty>"
-        raise Exception(f"{err_line}:\n"
-                        f" request:  {req_body}\n"
-                        f" response: {body}")
+        raise ElsciHttpException(f"{err_line}:\n request:  {req_body}\n response: {body}", resp, body)
 
     # Methods like this are written so that we don't access urllib3 in the main code directly, as we may switch
     # to a different implementation (urllib from stdlib) at some point.
@@ -90,3 +88,10 @@ class HttpClient:
 
     def _reason(self, resp: BaseHTTPResponse) -> str:
         return resp.reason
+
+
+class ElsciHttpException(Exception):
+    def __init__(self, msg: str, response: BaseHTTPResponse, resp_body: str):
+        super().__init__(msg)
+        self.response = response
+        self.response_body = resp_body
