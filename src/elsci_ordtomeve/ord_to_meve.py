@@ -1,40 +1,30 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
-import pytz
 from ord_schema.proto.reaction_pb2 import CompoundIdentifier, ReactionRole, Reaction
-from dateutil.parser import isoparser
 
 from elsci_ordtomeve.ord_util import get_dataset
-
-isoparser = isoparser()
+from elsci_ordtomeve.time_util import parse_ord_time
+from elscimevesdk.Meve import Meve
 
 from elscimevesdk.Event import Event
-def at_utc(dt: datetime) -> datetime:
-    if dt.tzinfo is None:
-        raise ValueError(
-            "Can't turn a datetime w/o timezone into a UTC time. Ensure that you create a datetime that has"
-            " timezone information. Otherwise it doesn't represent any particular instant and therefore it's not"
-            " possible to calculate the UTC time.")
-    # Signals API has a bug - it silently drops the timezone info considering all dates as if those were
-    # UTC0 dates. So we need to change the time to UTC0 to be compatible.
-    return dt.astimezone(timezone.utc)
+from elscimevesdk.util.api_util import basic_auth_header
+from elscimevesdk.util.env_util import envvar
 
-def parse_ord_time(t: str) -> datetime | None:
-    if not t:
-        return None
-    if "/" in t:
-        return datetime.strptime(t, '%m/%d/%Y').replace(tzinfo=pytz.UTC)
-    return at_utc(isoparser.isoparse(t))
+passwrd: str = envvar("MEVE_USER_PASSWORD", "sdktest")  # these work only for locally deployed instances
+auth_header_val: str = basic_auth_header("MEVE_USER_NAME", passwrd)
+base_url: str = envvar("MEVE_BASE_URL", "http://localhost:8080")
+default_headers: dict[str, str] = {"Authorization": auth_header_val}
+meve = Meve(base_url, default_headers=default_headers)
 
 event_type_mapping = {
     ReactionRole.ReactionRoleType.REACTANT: "Reacted",
     ReactionRole.ReactionRoleType.PRODUCT: "Synthesized"
 }
 structure_type_mapping = {
-    CompoundIdentifier.CompoundIdentifierType.SMILES: "smiles",
-    CompoundIdentifier.CompoundIdentifierType.CXSMILES: "smiles",
-    CompoundIdentifier.CompoundIdentifierType.INCHI: "inchi",
-    CompoundIdentifier.CompoundIdentifierType.MDL: "mdlmol",
+    CompoundIdentifier.CompoundIdentifierType.SMILES: "SMILES",
+    CompoundIdentifier.CompoundIdentifierType.CXSMILES: "SMILES",
+    CompoundIdentifier.CompoundIdentifierType.INCHI: "INCHI",
+    # CompoundIdentifier.CompoundIdentifierType.MDL: "MDLMOL",
 }
 
 class PreEvent:
@@ -48,8 +38,8 @@ def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
     events: list[PreEvent] = []
     for input in rxn.inputs:
         components = rxn.inputs[input].components
-        event_full: bool = False
         for component in components:
+            event_full: bool = False
             event_name = event_type_mapping.get(component.reaction_role)
             if not event_name:
                 continue
@@ -93,10 +83,11 @@ for dataset_id in dataset_ids:
         rxn_time: datetime = parse_ord_time(rxn.provenance.experiment_start.value)
         for pre_event in pre_events:
             events.append(Event(pre_event.event_name, rxn.provenance.experimenter.name, None, None,
-                                pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, pre_event.ui_url,
-                                None, None))
+                                pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, "ORD",
+                                pre_event.ui_url, None, None))
 
     print(f"Parsed {len(events)} events")
+    meve.events().create(events)
     events_total += len(events)
     # for event in events:
     #     print(event.to_csv())
