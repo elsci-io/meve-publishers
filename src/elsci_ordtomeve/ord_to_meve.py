@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Iterable
 
 from ord_schema.proto.reaction_pb2 import CompoundIdentifier, ReactionRole, Reaction
 
@@ -58,27 +59,31 @@ def submit_events(events: list[Event], dataset_id: str):
         print(e)
         raise RuntimeError(f"Failed to process dataset {dataset_id}")
 
+def _preevent_from_identifiers(event_name: str, rxn: Reaction, identifiers: Iterable[CompoundIdentifier]) -> PreEvent | None:
+    struct_format: str|None = None
+    struct: str|None = None
+    event_full: bool = False
+    for identifier in identifiers:
+        struct_format = structure_type_mapping.get(identifier.type)
+        struct = identifier.value
+        if struct_format and struct:
+            event_full = True
+            # besides names, in the identifiers there can be more than one structure (in different formats)
+            # for the same product/reactant, we need only one
+            break
+    if event_full:
+        return PreEvent(event_name, struct, struct_format, "https://open-reaction-database.org/id/" + rxn.reaction_id)
+
 def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
-    events: list[PreEvent] = []
-    for input in rxn.inputs:
-        components = rxn.inputs[input].components
-        for component in components:
-            event_full: bool = False
+    events_reacted: list[PreEvent] = []
+    for reactants in rxn.inputs:
+        for component in rxn.inputs[reactants].components:
             event_name = event_type_mapping.get(component.reaction_role)
             if not event_name:
                 continue
-            struct_format: str = None
-            struct: str = None
-            for identifier in component.identifiers:
-                struct_format = structure_type_mapping.get(identifier.type)
-                struct = identifier.value
-                if struct_format and struct:
-                    event_full = True
-                    break
-            if event_full:
-                events.append(PreEvent(event_name, struct, struct_format,
-                                    "https://open-reaction-database.org/id/" + rxn.reaction_id))
-    return events
+            if e := _preevent_from_identifiers(event_name, rxn, component.identifiers):
+                events_reacted.append(e)
+    return events_reacted
 
 events_total = 0
 reactions_total = 0
@@ -96,14 +101,8 @@ for dataset_id in dataset_ids:
         pre_events.extend(get_reacted_events(rxn))
         for outcome in rxn.outcomes:
             for product in outcome.products:
-                for identifier in product.identifiers:
-                    struct_type = structure_type_mapping.get(identifier.type)
-                    struct = identifier.value
-                    if not struct_type or not struct:
-                        continue
-                    pre_events.append(PreEvent("Synthesized", identifier.value, struct_type,
-                                                "https://open-reaction-database.org/id/" + rxn.reaction_id))
-
+                if e := _preevent_from_identifiers("Synthesized", rxn, product.identifiers):
+                    pre_events.append(e)
         rxn_time: datetime = parse_ord_time(rxn.provenance.experiment_start.value)
         for pre_event in pre_events:
             if pre_event.struct in structs_to_ignore:
