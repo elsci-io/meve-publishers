@@ -26,14 +26,14 @@ class Event:
         self.happenedTime = None
         if happened_time:
             self.happenedTime = happened_time.isoformat()
-        self.detailsUiUri = details_ui_url
-        self.detailsApiUri = details_api_url
+        self.detailsUiUrl = details_ui_url
+        self.detailsApiUrl = details_api_url
         self.props = props
 
     def to_csv(self) -> str:
         return ",".join(Event._none_to_empty([
             self.name, self.entity, self.context, self.structureId, self.username, self.project,
-            self.happenedTime, self.detailsApiUri, self.detailsUiUri])
+            self.happenedTime, self.detailsApiUrl, self.detailsUiUrl])
         )
     def to_json(self) -> str:
         return json.dumps(self, default=vars)
