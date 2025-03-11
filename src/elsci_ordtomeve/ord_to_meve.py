@@ -19,8 +19,11 @@ base_url: str = envvar("MEVE_BASE_URL", "http://localhost:8080")
 default_headers: dict[str, str] = {"Authorization": auth_header_val}
 meve = Meve(base_url, default_headers=default_headers)
 
-# We can't parse these for some reason:
-with open('./src/elsci_ordtomeve/structs_to_ignore.txt', 'r') as f:
+DATASETS_PATH = './src/elsci_ordtomeve/datasets.txt'
+# either we fail to parse these or we don't want such events in Meve
+STRUCTS_TO_IGNORE_PATH = './src/elsci_ordtomeve/structs_to_ignore.txt'
+
+with open(STRUCTS_TO_IGNORE_PATH, 'r') as f:
     structs_to_ignore = set(f.read().splitlines())
     print(f"{len(structs_to_ignore)} of structures are added to the ignore set - they won't be recorded as events")
 
@@ -52,7 +55,7 @@ def submit_events(events: list[Event], dataset_id: str):
             if "invalidStructure" in d:
                 struct: str = d["invalidStructure"]
                 print(f"Couldn't parse structure {struct}, adding to the skip list")
-                with open('./src/elsci_ordtomeve/structs_to_ignore.txt', 'a') as f:
+                with open(STRUCTS_TO_IGNORE_PATH, 'a') as f:
                     f.write(struct+"\n")
                 structs_to_ignore.add(struct)
                 submit_events([e for e in events if e.originalStructure != struct], dataset_id)
@@ -89,7 +92,7 @@ def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
 events_total = 0
 reactions_total = 0
 dataset_ids = []
-with open('./datasets.txt', 'r') as f:
+with open(DATASETS_PATH, 'r') as f:
     lines = f.readlines()
     for line in lines:
         dataset_ids.extend(line.split(" "))
