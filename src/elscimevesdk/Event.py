@@ -10,10 +10,9 @@ REQUESTED: str = "REQUESTED"
 
 
 class Event:
-    def __init__(self, name, created_by, project, structure_id: str, structure: str|None, structure_format: str|None,
+    def __init__(self, name, created_by, project, structure: str|None, structure_format: str|None,
                  entity: str, context: str, happened_time: datetime, originating_system: str,
-                 details_ui_url, details_api_url,
-                 original_structure_url: Optional[str]):
+                 details_ui_url, details_api_url, props: dict[str, any] | None):
         self.name = name
         self.username = created_by
         self.project = project
@@ -29,6 +28,7 @@ class Event:
             self.happenedTime = happened_time.isoformat()
         self.detailsUiUri = details_ui_url
         self.detailsApiUri = details_api_url
+        self.props = props
 
     def to_csv(self) -> str:
         return ",".join(Event._none_to_empty([

@@ -36,11 +36,12 @@ structure_type_mapping = {
 }
 
 class PreEvent:
-    def __init__(self, event_name: str, struct: str, struct_format: str, ui_url: str):
+    def __init__(self, event_name: str, struct: str, struct_format: str, ui_url: str, props: dict[str, any] = None):
         self.ui_url = ui_url
         self.struct_format = struct_format
         self.struct = struct
         self.event_name = event_name
+        self.props = props
 
 def submit_events(events: list[Event], dataset_id: str):
     try:
@@ -111,7 +112,8 @@ for dataset_id in dataset_ids:
             if pre_event.struct_format == 'SMILES' and '*' in pre_event.struct:
                 print(f" {rxn.reaction_id} has structure with wildcards, skipping this structure: {pre_event.struct}")
                 continue
-            events.append(Event(pre_event.event_name, rxn.provenance.experimenter.name, None, None,
+            experimenter = rxn.provenance.experimenter.name or None
+            events.append(Event(pre_event.event_name, experimenter, None,
                                 pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, "ORD",
                                 pre_event.ui_url, None, None))
 
