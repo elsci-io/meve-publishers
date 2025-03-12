@@ -3,3 +3,6 @@ InChI=1/Na/q+1
 InChI=1/K/q+1
 InChI=1/H/q-1
 InChI=1/Li/q+1
+[K+]
+[Na+]
+[Li+]

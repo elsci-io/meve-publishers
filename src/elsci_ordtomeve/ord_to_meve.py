@@ -42,8 +42,8 @@ class PreEvent:
     def __init__(self, event_name: str, struct: str, struct_format: str, ui_url: str, props: dict[str, any] = None):
         self.ui_url = ui_url
         self.struct_format = struct_format
-        self.struct = struct
-        self.event_name = event_name
+        self.struct: str = struct
+        self.event_name: str = event_name
         self.props = props
 
 def submit_events(events: list[Event], dataset_id: str):
@@ -79,15 +79,33 @@ def _preevent_from_identifiers(event_name: str, rxn: Reaction, identifiers: Iter
         return PreEvent(event_name, struct, struct_format, "https://open-reaction-database.org/id/" + rxn.reaction_id)
 
 def get_reacted_events(rxn: Reaction) -> list[PreEvent]:
-    events_reacted: list[PreEvent] = []
+    pre_events: list[PreEvent] = []
+    # Even though structures must be unique within a reaction, it's still possible that 2 distinct ones end up having
+    # the same structure ID. So we can't fully guarantee the uniqueness. Meve will replace one event with another then.
+    structs = set()
     for reactants in rxn.inputs:
         for component in rxn.inputs[reactants].components:
             event_name = event_type_mapping.get(component.reaction_role)
             if not event_name:
                 continue
             if e := _preevent_from_identifiers(event_name, rxn, component.identifiers):
-                events_reacted.append(e)
-    return events_reacted
+                if e.struct not in structs:
+                    structs.add(e.struct)
+                    pre_events.append(e)
+    return pre_events
+
+def get_synthesized_events(rxn: Reaction) -> list[PreEvent]:
+    pre_events: list[PreEvent] = []
+    # Even though structures must be unique within a reaction, it's still possible that 2 distinct ones end up having
+    # the same structure ID. So we can't fully guarantee the uniqueness. Meve will replace one event with another then.
+    structs = set()
+    for outcome in rxn.outcomes:
+        for product in outcome.products:
+            if e := _preevent_from_identifiers("Synthesized", rxn, product.identifiers):
+                if e.struct not in structs:
+                    structs.add(e.struct)
+                    pre_events.append(e)
+    return pre_events
 
 events_total = 0
 reactions_total = 0
@@ -103,10 +121,7 @@ for dataset_id in dataset_ids:
         reactions_total += 1
         pre_events: list[PreEvent] = []
         pre_events.extend(get_reacted_events(rxn))
-        for outcome in rxn.outcomes:
-            for product in outcome.products:
-                if e := _preevent_from_identifiers("Synthesized", rxn, product.identifiers):
-                    pre_events.append(e)
+        pre_events.extend(get_synthesized_events(rxn))
         rxn_time: datetime = parse_ord_time(rxn.provenance.experiment_start.value)
         for pre_event in pre_events:
             if pre_event.struct in structs_to_ignore:
