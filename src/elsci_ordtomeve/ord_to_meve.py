@@ -132,7 +132,7 @@ for dataset_id in dataset_ids:
                 continue
             experimenter = rxn.provenance.experimenter.name or None
             events.append(Event(pre_event.event_name, experimenter, None,
-                                pre_event.struct, pre_event.struct_format, None, rxn.reaction_id, rxn_time, "ORD",
+                                pre_event.struct, pre_event.struct_format, None, rxn.reaction_id[4:], rxn_time, "ORD",
                                 pre_event.ui_url, None, None))
 
 
