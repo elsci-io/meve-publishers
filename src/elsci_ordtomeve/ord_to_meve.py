@@ -13,8 +13,7 @@ from elscimevesdk.Event import Event
 from elscimevesdk.util.api_util import basic_auth_header
 from elscimevesdk.util.env_util import envvar
 
-passwrd: str = envvar("MEVE_USER_PASSWORD", "sdktest")  # these work only for locally deployed instances
-auth_header_val: str = basic_auth_header("MEVE_USER_NAME", passwrd)
+auth_header_val: str = basic_auth_header(envvar("MEVE_USER_NAME", "admin"), envvar("MEVE_USER_PASSWORD", "admin"))
 base_url: str = envvar("MEVE_BASE_URL", "http://localhost:8080")
 default_headers: dict[str, str] = {"Authorization": auth_header_val}
 meve = Meve(base_url, default_headers=default_headers)
