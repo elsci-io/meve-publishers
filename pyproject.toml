@@ -10,7 +10,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["ord-schema", "setuptools", "urllib3>=2.0.2", "psycopg2-binary==2.9.10"]
+dependencies = ["ord-schema", "setuptools", "urllib3>=2.0.2", "psycopg2-binary==2.9.10", "pandas", "pyarrow"]
 
 [project.urls]
 Homepage = "https://github.com/elsci-io/meve-publishers"
