@@ -45,7 +45,14 @@ class PreEvent:
         self.event_name: str = event_name
         self.props = props
 
+# nginx may close the connection on very large requests, so we submit events in batches
+BATCH_SIZE = 100_000
+
 def submit_events(events: list[Event], dataset_id: str):
+    for i in range(0, len(events), BATCH_SIZE):
+        _submit_batch(events[i:i + BATCH_SIZE], dataset_id)
+
+def _submit_batch(events: list[Event], dataset_id: str):
     try:
         meve.events().create(events)
     except Exception as e:
@@ -57,7 +64,7 @@ def submit_events(events: list[Event], dataset_id: str):
                 with open(STRUCTS_TO_IGNORE_PATH, 'a') as f:
                     f.write(struct+"\n")
                 structs_to_ignore.add(struct)
-                submit_events([e for e in events if e.originalStructure != struct], dataset_id)
+                _submit_batch([e for e in events if e.originalStructure != struct], dataset_id)
                 return
         print(e)
         raise RuntimeError(f"Failed to process dataset {dataset_id}")
