@@ -121,7 +121,11 @@ for dataset_id in dataset_ids:
         pre_events: list[PreEvent] = []
         pre_events.extend(get_reacted_events(rxn))
         pre_events.extend(get_synthesized_events(rxn))
-        rxn_time: datetime = parse_ord_time(rxn.provenance.experiment_start.value)
+        try:
+            rxn_time: datetime | None = parse_ord_time(rxn.provenance.experiment_start.value)
+        except ValueError as e:
+            print(f"Couldn't parse time {rxn.provenance.experiment_start.value} for reaction {rxn.reaction_id}, skipping this reaction")
+            continue
         for pre_event in pre_events:
             if pre_event.struct in structs_to_ignore:
                 print(f" {rxn.reaction_id} has structure that we can't parse, skipping this structure: {pre_event.struct}")
